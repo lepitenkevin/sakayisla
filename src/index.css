@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  /* Your Custom Color Palette */
+  --color-brand: #2FA084;
+  --color-brand-dark: #1F6F5F;
+  --color-brand-light: #EEEEEE;
+}
+
+/* Ensure Leaflet Maps render correctly with Tailwind */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  z-index: 10;
+}
