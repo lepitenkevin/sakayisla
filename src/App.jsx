@@ -10,6 +10,7 @@ import ContactUs from './components/ContactUs';
 import TermsOfService from './components/TermsOfService';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import HelpCenter from './components/HelpCenter';
+import { Analytics } from "@vercel/analytics/next"
 
 // --- ROUTE GUARD COMPONENT ---
 const ProtectedRoute = ({ children, allowedRole }) => {
@@ -124,6 +125,7 @@ const Navigation = () => {
 function App() {
   return (
     <Router>
+      <Analytics />
       <div className="min-h-screen flex flex-col bg-brand-light font-sans text-gray-800">
         <Navigation />
         
