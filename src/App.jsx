@@ -10,7 +10,7 @@ import ContactUs from './components/ContactUs';
 import TermsOfService from './components/TermsOfService';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import HelpCenter from './components/HelpCenter';
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from "@vercel/analytics/react"
 
 // --- ROUTE GUARD COMPONENT ---
 const ProtectedRoute = ({ children, allowedRole }) => {
