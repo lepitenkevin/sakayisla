@@ -7,8 +7,8 @@ const Register = () => {
         name: '', email: '', contact_number: '', password: '', role: 'passenger', motorcycle_model: '', plate_number: ''
     });
     
-    // --- NEW: State to hold uploaded files ---
-    const [files, setFiles] = useState({ license_image: null, or_image: null, cr_image: null });
+    // --- UPGRADED: Added license_back_image ---
+    const [files, setFiles] = useState({ license_image: null, license_back_image: null, or_image: null, cr_image: null });
     
     const [statusMsg, setStatusMsg] = useState({ type: '', text: '' });
     const [isLoading, setIsLoading] = useState(false);
@@ -36,14 +36,14 @@ const Register = () => {
         }
         
         if (formData.role === 'rider') {
-            if (!files.license_image || !files.or_image || !files.cr_image) {
-                setStatusMsg({ type: 'error', text: 'Please upload all required documents (License, OR, and CR).' });
+            // --- UPGRADED: Strict validation for all 4 images ---
+            if (!files.license_image || !files.license_back_image || !files.or_image || !files.cr_image) {
+                setStatusMsg({ type: 'error', text: 'Please upload all required documents (License Front & Back, OR, and CR).' });
                 setIsLoading(false);
                 return;
             }
         }
 
-        // --- NEW: Switch from JSON to FormData to support Image Uploads ---
         const submitData = new FormData();
         submitData.append('name', formData.name);
         submitData.append('email', formData.email);
@@ -55,6 +55,7 @@ const Register = () => {
             submitData.append('motorcycle_model', formData.motorcycle_model);
             submitData.append('plate_number', formData.plate_number);
             submitData.append('license_image', files.license_image);
+            submitData.append('license_back_image', files.license_back_image); // New append
             submitData.append('or_image', files.or_image);
             submitData.append('cr_image', files.cr_image);
         }
@@ -62,9 +63,8 @@ const Register = () => {
         try {
             const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}register.php`, {
                 method: 'POST', 
-                body: submitData, // Sending the raw FormData
+                body: submitData, 
                 headers: { 
-                    // Note: When using FormData, NEVER set 'Content-Type' manually. The browser does it automatically!
                     'x-api-key': import.meta.env.VITE_API_ACCESS_KEY, 
                     'x-api-secret': import.meta.env.VITE_API_SECRET_KEY 
                 }
@@ -153,7 +153,6 @@ const Register = () => {
                                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand transition" />
                     </div>
 
-                    {/* --- UPGRADED RIDER FIELDS (DOCUMENTS & PHOTOS) --- */}
                     {formData.role === 'rider' && (
                         <div className="bg-brand-light/30 p-5 rounded-2xl border border-brand/20 mt-2 space-y-5 animate-fade-in">
                             <h3 className="font-extrabold text-brand-dark text-sm uppercase tracking-wider flex items-center justify-between">
@@ -176,17 +175,25 @@ const Register = () => {
 
                             <div className="space-y-4 pt-2 border-t border-brand/10">
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Driver's License Photo</label>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Driver's License Photo (Front)</label>
                                     <input type="file" name="license_image" accept="image/*" capture="environment" required onChange={handleFileChange}
                                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-brand file:text-white hover:file:bg-brand-dark transition cursor-pointer" />
                                 </div>
+                                
+                                {/* --- NEW: License Back Image Field --- */}
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Vehicle Official Receipt (OR) Photo</label>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Driver's License Photo (Back)</label>
+                                    <input type="file" name="license_back_image" accept="image/*" capture="environment" required onChange={handleFileChange}
+                                           className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-brand file:text-white hover:file:bg-brand-dark transition cursor-pointer" />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Vehicle Official Receipt (OR)</label>
                                     <input type="file" name="or_image" accept="image/*" capture="environment" required onChange={handleFileChange}
                                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-brand file:text-white hover:file:bg-brand-dark transition cursor-pointer" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Vehicle Certificate of Registration (CR)</label>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Certificate of Registration (CR)</label>
                                     <input type="file" name="cr_image" accept="image/*" capture="environment" required onChange={handleFileChange}
                                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-brand file:text-white hover:file:bg-brand-dark transition cursor-pointer" />
                                 </div>

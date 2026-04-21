@@ -3,23 +3,20 @@ import React, { useState, useEffect } from 'react';
 const SuperAdmin = () => {
     const [activeTab, setActiveTab] = useState('users');
     
-    // Users State
     const [users, setUsers] = useState([]);
     const [editingUser, setEditingUser] = useState(null);
     
-    // --- NEW: State to hold newly uploaded files in the Edit Modal ---
-    const [editFiles, setEditFiles] = useState({ license_image: null, or_image: null, cr_image: null });
+    // --- UPGRADED: Added license_back_image ---
+    const [editFiles, setEditFiles] = useState({ license_image: null, license_back_image: null, or_image: null, cr_image: null });
     
     const [viewingUser, setViewingUser] = useState(null); 
     
-    // Advanced Filters & Sorting
     const [roleFilter, setRoleFilter] = useState('rider'); 
     const [riderStatusFilter, setRiderStatusFilter] = useState('pending'); 
     
     const [searchQuery, setSearchQuery] = useState('');
     const [sortOption, setSortOption] = useState('name-asc'); 
 
-    // Bookings State
     const [bookings, setBookings] = useState([]);
 
     const apiHeaders = {
@@ -49,7 +46,6 @@ const SuperAdmin = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // --- USERS CRUD ---
     const handleDeleteUser = async (id) => {
         if (window.confirm("Permanently delete this user?")) {
             await fetch(`${import.meta.env.VITE_API_BASE_URL}admin_users.php`, { 
@@ -61,13 +57,11 @@ const SuperAdmin = () => {
         }
     };
 
-    // --- NEW: Wrapper to clear file state when opening the Edit Modal ---
     const openEditModal = (user) => {
         setEditingUser(user);
-        setEditFiles({ license_image: null, or_image: null, cr_image: null });
+        setEditFiles({ license_image: null, license_back_image: null, or_image: null, cr_image: null });
     };
 
-    // --- UPGRADED: Uses FormData and POST to support file uploads ---
     const handleUpdateUser = async (e) => {
         e.preventDefault();
 
@@ -83,6 +77,7 @@ const SuperAdmin = () => {
             formData.append('motorcycle_model', editingUser.motorcycle_model || '');
             formData.append('plate_number', editingUser.plate_number || '');
             if (editFiles.license_image) formData.append('license_image', editFiles.license_image);
+            if (editFiles.license_back_image) formData.append('license_back_image', editFiles.license_back_image); // NEW
             if (editFiles.or_image) formData.append('or_image', editFiles.or_image);
             if (editFiles.cr_image) formData.append('cr_image', editFiles.cr_image);
         }
@@ -99,10 +94,9 @@ const SuperAdmin = () => {
             
             const data = await res.json();
             
-            // Wait! Did the server actually succeed?
             if (data.status !== 'success') {
                 alert("Error saving updates: " + data.message);
-                return; // Stop right here, don't close the modal!
+                return; 
             }
             
             setEditingUser(null);
@@ -124,7 +118,6 @@ const SuperAdmin = () => {
         }
     };
 
-    // --- BOOKINGS CRUD ---
     const handleUpdateBooking = async (id, newStatus) => {
         await fetch(`${import.meta.env.VITE_API_BASE_URL}admin_bookings.php`, { 
             method: 'PUT', 
@@ -145,7 +138,6 @@ const SuperAdmin = () => {
         }
     };
 
-    // --- FILTER & SORT LOGIC ---
     const processedUsers = users
         .filter(user => user.role === roleFilter)
         .filter(user => {
@@ -266,7 +258,6 @@ const SuperAdmin = () => {
                                                     {user.role === 'rider' && user.account_status === 'pending' ? '🚨 Review Docs' : 'View'}
                                                 </button>
                                                 
-                                                {/* Uses the new openEditModal wrapper */}
                                                 <button onClick={() => openEditModal(user)} className="text-brand font-bold mr-4 hover:underline">Edit</button>
                                                 {user.role !== 'superadmin' && (
                                                     <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 font-bold hover:underline">Delete</button>
@@ -343,12 +334,21 @@ const SuperAdmin = () => {
                                         </div>
                                     </div>
 
+                                    {/* --- UPGRADED: Added License Back Image to View Modal --- */}
                                     <div className="space-y-6">
-                                        <div>
-                                            <p className="text-sm font-bold text-gray-700 mb-2">Driver's License</p>
-                                            {viewingUser.license_image ? (
-                                                <img src={`${import.meta.env.VITE_API_BASE_URL}${viewingUser.license_image}`} alt="License" className="w-full h-auto max-h-[400px] object-contain rounded-xl border-2 border-gray-200 bg-gray-50" />
-                                            ) : <p className="text-gray-400 italic">No image uploaded</p>}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-sm font-bold text-gray-700 mb-2">Driver's License (Front)</p>
+                                                {viewingUser.license_image ? (
+                                                    <img src={`${import.meta.env.VITE_API_BASE_URL}${viewingUser.license_image}`} alt="License Front" className="w-full h-auto max-h-[300px] object-contain rounded-xl border-2 border-gray-200 bg-gray-50" />
+                                                ) : <p className="text-gray-400 italic">No image uploaded</p>}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-gray-700 mb-2">Driver's License (Back)</p>
+                                                {viewingUser.license_back_image ? (
+                                                    <img src={`${import.meta.env.VITE_API_BASE_URL}${viewingUser.license_back_image}`} alt="License Back" className="w-full h-auto max-h-[300px] object-contain rounded-xl border-2 border-gray-200 bg-gray-50" />
+                                                ) : <p className="text-gray-400 italic">No image uploaded</p>}
+                                            </div>
                                         </div>
                                         <div>
                                             <p className="text-sm font-bold text-gray-700 mb-2">Official Receipt (OR)</p>
@@ -385,7 +385,6 @@ const SuperAdmin = () => {
             {/* EDIT USER MODAL */}
             {editingUser && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[110] p-4 overflow-y-auto">
-                    {/* Added max-h and overflow-y-auto so the modal scrolls if it gets too tall with the new file inputs */}
                     <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
                         <h3 className="text-2xl font-extrabold mb-4">Edit Profile</h3>
                         <form onSubmit={handleUpdateUser} className="flex flex-col gap-4">
@@ -410,7 +409,7 @@ const SuperAdmin = () => {
                                 </select>
                             </div>
 
-                            {/* --- UPGRADED: Rider Edit Fields for FB Manual Approvals --- */}
+                            {/* --- UPGRADED: Added License Back Upload --- */}
                             {editingUser.role === 'rider' && (
                                 <div className="border-t border-gray-200 mt-2 pt-4 space-y-4">
                                     <h4 className="font-extrabold text-brand-dark uppercase tracking-wide text-xs">Rider Documents</h4>
@@ -424,8 +423,12 @@ const SuperAdmin = () => {
                                     </div>
                                     
                                     <div>
-                                        <label className="text-xs font-bold text-gray-500 block mb-1">Update Driver's License</label>
+                                        <label className="text-xs font-bold text-gray-500 block mb-1">Update Driver's License (Front)</label>
                                         <input type="file" onChange={e => setEditFiles({...editFiles, license_image: e.target.files[0]})} className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-brand-light file:text-brand-dark file:font-bold w-full" accept="image/*" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-500 block mb-1">Update Driver's License (Back)</label>
+                                        <input type="file" onChange={e => setEditFiles({...editFiles, license_back_image: e.target.files[0]})} className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-brand-light file:text-brand-dark file:font-bold w-full" accept="image/*" />
                                     </div>
                                     <div>
                                         <label className="text-xs font-bold text-gray-500 block mb-1">Update Official Receipt (OR)</label>
