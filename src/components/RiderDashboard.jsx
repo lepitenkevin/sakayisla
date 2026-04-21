@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents, useMap } from 'react-leaflet';
+import { useNavigate } from 'react-router-dom'; // --- NEW: Needed for logging them out ---
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -43,12 +44,13 @@ const AutoPan = ({ position }) => {
 };
 
 const RiderDashboard = () => {
+    const navigate = useNavigate(); // --- NEW: Initialize navigator ---
+    
     const [bookings, setBookings] = useState([]);
     const [selectedBookingForMap, setSelectedBookingForMap] = useState(null);
     const [currentLocation, setCurrentLocation] = useState({ lat: 11.1965, lng: 123.7745 });
     const [isAutoGps, setIsAutoGps] = useState(true); 
     
-    // --- NEW: Profile Modal State ---
     const [showProfile, setShowProfile] = useState(false);
     
     const [acceptingId, setAcceptingId] = useState(null);
@@ -65,7 +67,7 @@ const RiderDashboard = () => {
     };
 
     const fetchBookings = () => {
-        if (!user) return;
+        if (!user || user.account_status === 'pending') return; // Stop fetching if pending
         fetch(`${import.meta.env.VITE_API_BASE_URL}rider_bookings.php?rider_id=${user.id}`, { headers: apiHeaders })
             .then(res => res.json())
             .then(data => { if(data.status === 'success') setBookings(data.data); })
@@ -73,19 +75,21 @@ const RiderDashboard = () => {
     };
 
     useEffect(() => {
+        if (!user || user.account_status === 'pending') return; // Don't run intervals if pending
         fetchBookings();
         const interval = setInterval(fetchBookings, 5000);
         return () => clearInterval(interval);
-    }, []);
+    }, [user]);
 
     const sendLocationToDatabase = (lat, lng) => {
+        if (!user || user.account_status === 'pending') return;
         fetch(`${import.meta.env.VITE_API_BASE_URL}update_location.php`, {
             method: 'POST', body: JSON.stringify({ rider_id: user.id, lat, lng }), headers: apiHeaders
         }).catch(err => console.error("Failed to update location:", err));
     };
 
     useEffect(() => {
-        if (!user || !isAutoGps) return; 
+        if (!user || !isAutoGps || user.account_status === 'pending') return; 
         const watchId = navigator.geolocation.watchPosition(
             (pos) => {
                 setCurrentLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
@@ -95,7 +99,7 @@ const RiderDashboard = () => {
             { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
         );
         return () => navigator.geolocation.clearWatch(watchId);
-    }, [isAutoGps]);
+    }, [isAutoGps, user]);
 
     const updateStatus = async (bookingId, newStatus, fare = null) => {
         if (!bookingId) return alert("System Error: Booking ID is missing!");
@@ -123,12 +127,81 @@ const RiderDashboard = () => {
         }
     };
 
+    useEffect(() => {
+        // If there is no user, OR if their data is old (missing account_status)
+        if (!user || user.account_status === undefined) {
+            localStorage.removeItem('user'); // Destroy old ghost data
+            navigate('/login'); // Safely redirect
+        }
+    }, [navigate, user]);
+
+    // Prevent the rest of the app from rendering while redirecting
+    if (!user || user.account_status === undefined) return null;
+
+    // THE PENDING BLOCKER (Safely renders if status is exactly 'pending')
+    if (user.account_status === 'pending') {
+        return (
+            <div className="flex items-center justify-center h-[80vh] px-4">
+                <div className="bg-white p-8 md:p-12 rounded-3xl shadow-lg max-w-lg w-full text-center border border-gray-100">
+                    <div className="w-24 h-24 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-6 text-5xl border-4 border-orange-100">
+                        ⏳
+                    </div>
+                    <h2 className="text-2xl md:text-3xl font-extrabold text-brand-dark mb-4">Account Under Review</h2>
+                    <p className="text-gray-500 font-medium mb-8 leading-relaxed">
+                        Thank you for registering as a rider! Your submitted documents are currently being reviewed by our admin team. We will send you an email as soon as you are approved to start accepting rides.
+                    </p>
+                    <button 
+                        onClick={() => {
+                            localStorage.removeItem('user');
+                            navigate('/login');
+                        }} 
+                        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-extrabold py-4 rounded-xl transition shadow-sm"
+                    >
+                        Log Out for Now
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     if (!user) return null;
+
+    // 2. If their local storage is outdated (missing account_status), force a fresh login!
+    if (user.account_status === undefined) {
+        localStorage.removeItem('user');
+        window.location.href = '/login'; // Redirect to login page
+        return null;
+    }
+
+    // 3. THE PENDING BLOCKER
+    if (user.account_status === 'pending') {
+        return (
+            <div className="flex items-center justify-center h-[80vh] px-4">
+                <div className="bg-white p-8 md:p-12 rounded-3xl shadow-lg max-w-lg w-full text-center border border-gray-100">
+                    <div className="w-24 h-24 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-6 text-5xl border-4 border-orange-100">
+                        ⏳
+                    </div>
+                    <h2 className="text-2xl md:text-3xl font-extrabold text-brand-dark mb-4">Account Under Review</h2>
+                    <p className="text-gray-500 font-medium mb-8 leading-relaxed">
+                        Thank you for registering as a rider! Your submitted documents are currently being reviewed by our admin team. We will send you an email as soon as you are approved to start accepting rides.
+                    </p>
+                    <button 
+                        onClick={() => {
+                            localStorage.removeItem('user');
+                            window.location.href = '/login';
+                        }} 
+                        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-extrabold py-4 rounded-xl transition shadow-sm"
+                    >
+                        Log Out for Now
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col lg:flex-row h-[80vh] gap-6 relative">
             
-            {/* --- NEW: RIDER PROFILE MODAL --- */}
             {showProfile && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full shadow-2xl relative">
@@ -170,7 +243,6 @@ const RiderDashboard = () => {
 
             <div className="w-full lg:w-[450px] flex flex-col gap-4">
                 
-                {/* --- NEW: MINI PROFILE HEADER CARD --- */}
                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-brand-light rounded-full flex items-center justify-center text-xl border-2 border-white shadow-sm">👨‍🚀</div>
