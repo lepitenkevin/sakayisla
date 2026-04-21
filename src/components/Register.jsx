@@ -11,7 +11,7 @@ const Register = () => {
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-    // --- NEW: Strict Mobile Number Formatter ---
+    // --- Strict Mobile Number Formatter ---
     const handlePhoneChange = (e) => {
         // Strip out any non-numeric characters (letters, spaces, symbols)
         const onlyNumbers = e.target.value.replace(/\D/g, '');
@@ -26,7 +26,7 @@ const Register = () => {
         setIsLoading(true);
         setStatusMsg({ type: '', text: '' });
 
-        // --- NEW: Pre-flight validation for exact 10-digit requirement ---
+        // --- Pre-flight validation for exact 10-digit requirement ---
         if (formData.contact_number.length !== 10) {
             setStatusMsg({ type: 'error', text: 'Mobile number must be exactly 10 digits (e.g. 915 518 1798).' });
             setIsLoading(false);
@@ -85,13 +85,24 @@ const Register = () => {
                         >
                             🚶‍♂️ Passenger
                         </button>
+                        
+                        {/* --- DISABLED RIDER BUTTON --- */}
                         <button 
                             type="button" 
-                            onClick={() => setFormData({...formData, role: 'rider'})}
-                            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${formData.role === 'rider' ? 'bg-white shadow text-brand-dark' : 'text-gray-500 hover:text-gray-700'}`}
+                            disabled
+                            className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all bg-transparent text-gray-400 cursor-not-allowed opacity-70"
                         >
-                            🛵 Rider
+                            🛵 Rider (Paused)
                         </button>
+                    </div>
+
+                    {/* --- NEW: RIDER PAUSE NOTIFICATION BANNER --- */}
+                    <div className="bg-orange-50 border border-orange-100 text-orange-800 p-3.5 rounded-xl text-xs font-bold mb-1 flex items-start gap-3">
+                        <span className="text-lg leading-none">🚧</span>
+                        <p>
+                            <strong>Rider Registration is temporarily paused.</strong><br/> 
+                            We are currently implementing new driver requirements to keep our island safe. Passenger registration remains open!
+                        </p>
                     </div>
 
                     <div>
@@ -107,7 +118,6 @@ const Register = () => {
                                    className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand transition" />
                         </div>
                         
-                        {/* --- UPGRADED: Fixed +63 Prefix UI --- */}
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-1.5">Mobile Number</label>
                             <div className="flex items-center bg-gray-50 border border-gray-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-brand transition">
@@ -133,6 +143,7 @@ const Register = () => {
                                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand transition" />
                     </div>
 
+                    {/* Left safely in the code for when you re-enable Riders later! */}
                     {formData.role === 'rider' && (
                         <div className="bg-brand-light/30 p-5 rounded-2xl border border-brand/20 mt-2 space-y-5 animate-fade-in">
                             <h3 className="font-extrabold text-brand-dark text-sm uppercase tracking-wider">Vehicle Details</h3>
