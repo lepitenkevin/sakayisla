@@ -45,6 +45,20 @@ const MapController = ({ center }) => {
 };
 
 const PassengerDashboard = () => {
+    const [currentUser, setCurrentUser] = useState(JSON.parse(localStorage.getItem('user')));
+    
+    const initialPhone = currentUser?.contact_number?.startsWith('+63') 
+        ? currentUser.contact_number.substring(3) 
+        : currentUser?.contact_number || '';
+
+    const [showPassengerProfile, setShowPassengerProfile] = useState(false);
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [profileForm, setProfileForm] = useState({ name: currentUser?.name || '', contact_number: initialPhone });
+    
+    // --- NEW: Profile Status State for in-form messages ---
+    const [profileStatus, setProfileStatus] = useState({ type: '', text: '' });
+    const [isSavingProfile, setIsSavingProfile] = useState(false);
+
     const [remarks, setRemarks] = useState('');
     const [riders, setRiders] = useState([]); 
     const [activeBooking, setActiveBooking] = useState(null); 
@@ -54,7 +68,6 @@ const PassengerDashboard = () => {
     const [activePinMode, setActivePinMode] = useState('pickup'); 
     const [hasDestination, setHasDestination] = useState(false); 
     
-    // --- NEW: State for showing the booked rider's profile ---
     const [showRiderProfile, setShowRiderProfile] = useState(false);
     
     const [searchQuery, setSearchQuery] = useState('');
@@ -64,8 +77,6 @@ const PassengerDashboard = () => {
     
     const [showThankYou, setShowThankYou] = useState(false);
     const prevBookingRef = useRef(null);
-    
-    const user = JSON.parse(localStorage.getItem('user'));
 
     const apiHeaders = {
         'Content-Type': 'application/json',
@@ -84,9 +95,9 @@ const PassengerDashboard = () => {
         }
 
         const fetchStatusAndRiders = () => {
-            if (!user) return;
+            if (!currentUser) return;
             
-            fetch(`${import.meta.env.VITE_API_BASE_URL}passenger_booking.php?passenger_id=${user.id}`, { headers: apiHeaders })
+            fetch(`${import.meta.env.VITE_API_BASE_URL}passenger_booking.php?passenger_id=${currentUser.id}`, { headers: apiHeaders })
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success' && data.has_booking) {
@@ -114,7 +125,67 @@ const PassengerDashboard = () => {
         fetchStatusAndRiders();
         const interval = setInterval(fetchStatusAndRiders, 5000); 
         return () => clearInterval(interval);
-    }, []);
+    }, [currentUser]);
+
+    const handlePhoneChange = (e) => {
+        const onlyNumbers = e.target.value.replace(/\D/g, '');
+        if (onlyNumbers.length <= 10) {
+            setProfileForm({ ...profileForm, contact_number: onlyNumbers });
+        }
+    };
+
+    // --- UPGRADED: Save Profile with in-form status messages ---
+    const handleSaveProfile = async (e) => {
+        e.preventDefault();
+        setProfileStatus({ type: '', text: '' });
+        
+        if (profileForm.contact_number.length !== 10) {
+            return setProfileStatus({ type: 'error', text: 'Mobile number must be exactly 10 digits.' });
+        }
+
+        setIsSavingProfile(true);
+        const formattedPhone = `+63${profileForm.contact_number}`;
+        
+        const formData = new FormData();
+        formData.append('_method', 'PUT');
+        formData.append('id', currentUser.id);
+        formData.append('name', profileForm.name);
+        formData.append('email', currentUser.email); 
+        formData.append('contact_number', formattedPhone);
+        formData.append('role', currentUser.role); 
+
+        try {
+            const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}admin_users.php`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'x-api-key': import.meta.env.VITE_API_ACCESS_KEY,
+                    'x-api-secret': import.meta.env.VITE_API_SECRET_KEY
+                }
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                const updatedUser = { ...currentUser, name: profileForm.name, contact_number: formattedPhone };
+                localStorage.setItem('user', JSON.stringify(updatedUser)); 
+                setCurrentUser(updatedUser); 
+                
+                setProfileStatus({ type: 'success', text: 'Profile updated successfully!' });
+                
+                // Delay closing the modal so they can see the success message
+                setTimeout(() => {
+                    setIsEditingProfile(false); 
+                    setProfileStatus({ type: '', text: '' });
+                }, 1500);
+            } else {
+                setProfileStatus({ type: 'error', text: 'Failed to update: ' + data.message });
+            }
+        } catch (error) {
+            setProfileStatus({ type: 'error', text: 'Failed to connect to the server.' });
+        } finally {
+            setIsSavingProfile(false);
+        }
+    };
 
     const handleSearch = async (e) => {
         const query = e.target.value;
@@ -157,7 +228,7 @@ const PassengerDashboard = () => {
         if (hasDestination && !dropoffLocation.lat) return alert("Please set a destination.");
 
         const payload = { 
-            passenger_id: user.id, 
+            passenger_id: currentUser.id, 
             rider_id: riderId || null, 
             pickup_lat: pickupLocation.lat, pickup_lng: pickupLocation.lng,
             dropoff_lat: hasDestination ? dropoffLocation.lat : null, dropoff_lng: hasDestination ? dropoffLocation.lng : null,
@@ -185,7 +256,7 @@ const PassengerDashboard = () => {
                 method: 'POST', body: JSON.stringify({ booking_id: bookingId, status: newStatus }), headers: apiHeaders
             });
             
-            fetch(`${import.meta.env.VITE_API_BASE_URL}passenger_booking.php?passenger_id=${user.id}`, { headers: apiHeaders })
+            fetch(`${import.meta.env.VITE_API_BASE_URL}passenger_booking.php?passenger_id=${currentUser.id}`, { headers: apiHeaders })
                 .then(res => res.json())
                 .then(data => { if (data.status === 'success') setActiveBooking(data.has_booking ? data.data : null); });
         } catch (error) {
@@ -193,11 +264,89 @@ const PassengerDashboard = () => {
         }
     };
 
-    if (!user) return null;
+    if (!currentUser) return null;
 
     return (
         <div className="flex flex-col lg:flex-row h-[80vh] gap-6 relative">
             
+            {/* PASSENGER MY PROFILE MODAL */}
+            {showPassengerProfile && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full shadow-2xl relative">
+                        <button onClick={() => { setShowPassengerProfile(false); setIsEditingProfile(false); setProfileStatus({ type: '', text: '' }); }} className="absolute top-4 right-5 text-gray-400 hover:text-gray-800 text-2xl font-bold transition">✕</button>
+
+                        <div className="text-center mb-6">
+                            <div className="w-20 h-20 bg-brand-light rounded-full flex items-center justify-center text-4xl mx-auto mb-3 border-4 border-white shadow-sm ring-2 ring-brand/20">🚶‍♂️</div>
+                            <h2 className="text-2xl font-extrabold text-brand-dark">{isEditingProfile ? 'Edit Profile' : currentUser.name}</h2>
+                            {!isEditingProfile && <p className="text-sm font-bold text-gray-500 uppercase tracking-wider mt-1">{currentUser.role}</p>}
+                        </div>
+
+                        {!isEditingProfile ? (
+                            <>
+                                <div className="space-y-4">
+                                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Email Address</p>
+                                        <p className="font-bold text-gray-800 flex items-center gap-2"><span className="text-lg">📧</span> {currentUser.email}</p>
+                                    </div>
+                                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Mobile Number</p>
+                                        <p className="font-bold text-gray-800 flex items-center gap-2"><span className="text-lg">📞</span> {currentUser.contact_number}</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setIsEditingProfile(true)} className="w-full mt-6 bg-brand hover:bg-brand-dark text-white font-extrabold py-3.5 rounded-xl transition shadow-md">
+                                    Edit Details
+                                </button>
+                            </>
+                        ) : (
+                            <form onSubmit={handleSaveProfile} className="space-y-4">
+                                {/* --- NEW: In-form Status Message --- */}
+                                {profileStatus.text && (
+                                    <div className={`p-3 rounded-xl text-sm font-bold text-center ${profileStatus.type === 'success' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+                                        {profileStatus.text}
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Full Name</label>
+                                    <input type="text" value={profileForm.name} onChange={(e) => setProfileForm({...profileForm, name: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand font-bold" required />
+                                </div>
+                                
+                                <div>
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Mobile Number</label>
+                                    <div className="flex items-center bg-gray-50 border border-gray-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-brand transition">
+                                        <div className="px-3.5 py-3.5 bg-gray-100 border-r border-gray-200 text-gray-600 font-extrabold select-none">
+                                            +63
+                                        </div>
+                                        <input 
+                                            type="tel" 
+                                            value={profileForm.contact_number} 
+                                            onChange={handlePhoneChange} 
+                                            placeholder="915 518 1798"
+                                            className="w-full p-3.5 bg-transparent border-none focus:outline-none focus:ring-0 font-bold tracking-wide" 
+                                            required 
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2 mt-6">
+                                    <button type="button" disabled={isSavingProfile} onClick={() => { 
+                                        setIsEditingProfile(false); 
+                                        setProfileStatus({ type: '', text: '' });
+                                        setProfileForm({ 
+                                            name: currentUser.name, 
+                                            contact_number: currentUser.contact_number.startsWith('+63') ? currentUser.contact_number.substring(3) : currentUser.contact_number 
+                                        }); 
+                                    }} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3.5 rounded-xl transition disabled:opacity-50">Cancel</button>
+                                    <button type="submit" disabled={isSavingProfile} className="flex-[2] bg-brand hover:bg-brand-dark text-white font-extrabold py-3.5 rounded-xl transition shadow-md disabled:bg-gray-400">
+                                        {isSavingProfile ? 'Saving...' : 'Save Changes'}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {showThankYou && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white rounded-3xl p-8 md:p-12 text-center max-w-md w-full shadow-2xl">
@@ -215,7 +364,7 @@ const PassengerDashboard = () => {
                 </div>
             )}
 
-            {/* --- NEW: BOOKED RIDER PROFILE MODAL --- */}
+            {/* BOOKED RIDER PROFILE MODAL */}
             {showRiderProfile && activeBooking && activeBooking.rider_id && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full shadow-2xl relative">
@@ -250,6 +399,18 @@ const PassengerDashboard = () => {
             )}
 
             <div className="w-full lg:w-[400px] flex flex-col gap-4">
+                
+                {/* PASSENGER PROFILE HEADER CARD */}
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-brand-light rounded-full flex items-center justify-center text-xl border-2 border-white shadow-sm">🚶‍♂️</div>
+                        <div>
+                            <h3 className="font-extrabold text-brand-dark text-lg leading-tight">{currentUser.name}</h3>
+                            <button onClick={() => setShowPassengerProfile(true)} className="text-xs font-bold text-brand hover:underline mt-0.5 inline-block">My Profile</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex-1 overflow-y-auto">
                     <h2 className="text-2xl font-extrabold text-brand-dark mb-6">Where to?</h2>
                     
@@ -271,8 +432,6 @@ const PassengerDashboard = () => {
                                     <div className="flex justify-between items-start mb-4 border-b border-gray-100 pb-4">
                                         <div>
                                             <h3 className="font-black text-brand-dark text-xl">Rider's Offer</h3>
-                                            
-                                            {/* --- NEW: View Profile Link next to name --- */}
                                             <div className="flex items-center gap-2 mt-1">
                                                 <p className="text-gray-500 font-medium text-sm">{activeBooking.rider_name}</p>
                                                 <button onClick={() => setShowRiderProfile(true)} className="text-xs font-bold text-brand hover:underline">View Profile</button>
@@ -303,7 +462,6 @@ const PassengerDashboard = () => {
                                     <div className="bg-white rounded-xl p-4 shadow-sm mb-4 border-l-4 border-brand">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                {/* --- NEW: View Profile Link next to accepted rider name --- */}
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <p className="font-extrabold text-gray-800 text-xl">{activeBooking.rider_name}</p>
                                                     <button onClick={() => setShowRiderProfile(true)} className="text-xs font-bold text-brand hover:underline mt-1">View Profile</button>
