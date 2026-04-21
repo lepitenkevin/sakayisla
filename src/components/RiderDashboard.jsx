@@ -48,6 +48,9 @@ const RiderDashboard = () => {
     const [currentLocation, setCurrentLocation] = useState({ lat: 11.1965, lng: 123.7745 });
     const [isAutoGps, setIsAutoGps] = useState(true); 
     
+    // --- NEW: Profile Modal State ---
+    const [showProfile, setShowProfile] = useState(false);
+    
     const [acceptingId, setAcceptingId] = useState(null);
     const [askingFare, setAskingFare] = useState("");
     const [editingFareId, setEditingFareId] = useState(null);
@@ -97,7 +100,6 @@ const RiderDashboard = () => {
     const updateStatus = async (bookingId, newStatus, fare = null) => {
         if (!bookingId) return alert("System Error: Booking ID is missing!");
 
-        // Important: We attach rider_id: user.id so if it's an OPEN pool request, they claim it!
         const payload = { booking_id: bookingId, status: newStatus, rider_id: user.id };
         if (fare) payload.fare = fare; 
 
@@ -124,9 +126,64 @@ const RiderDashboard = () => {
     if (!user) return null;
 
     return (
-        <div className="flex flex-col lg:flex-row h-[80vh] gap-6">
+        <div className="flex flex-col lg:flex-row h-[80vh] gap-6 relative">
+            
+            {/* --- NEW: RIDER PROFILE MODAL --- */}
+            {showProfile && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full shadow-2xl relative">
+                        <button onClick={() => setShowProfile(false)} className="absolute top-4 right-5 text-gray-400 hover:text-gray-800 text-2xl font-bold transition">✕</button>
+                        
+                        <div className="text-center mb-6">
+                            <div className="w-20 h-20 bg-brand-light rounded-full flex items-center justify-center text-4xl mx-auto mb-3 border-4 border-white shadow-sm ring-2 ring-brand/20">👨‍🚀</div>
+                            <h2 className="text-2xl font-extrabold text-brand-dark">{user.name}</h2>
+                            <p className="text-sm font-bold text-gray-500 uppercase tracking-wider mt-1">{user.role}</p>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Contact Information</p>
+                                <p className="font-bold text-gray-800 flex items-center gap-2"><span className="text-lg">📧</span> {user.email}</p>
+                                <p className="font-bold text-gray-800 flex items-center gap-2 mt-2"><span className="text-lg">📞</span> {user.contact_number}</p>
+                            </div>
+                            
+                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Vehicle Details</p>
+                                <p className="font-bold text-gray-800 flex items-center gap-2"><span className="text-lg">🛵</span> {user.motorcycle_model || 'Not Provided'}</p>
+                                <p className="font-bold text-gray-800 flex items-center gap-2 mt-2 uppercase"><span className="text-lg">🏷️</span> {user.plate_number || 'Not Provided'}</p>
+                            </div>
+
+                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex justify-between items-center">
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Account Status</p>
+                                <span className={`px-3 py-1 text-xs font-black uppercase tracking-wider rounded-lg ${user.account_status === 'pending' ? 'bg-orange-100 text-orange-800 border border-orange-200' : 'bg-green-100 text-green-800 border border-green-200'}`}>
+                                    {user.account_status || 'Active'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <button onClick={() => setShowProfile(false)} className="w-full mt-6 bg-brand hover:bg-brand-dark text-white font-extrabold py-3.5 rounded-xl transition shadow-md">
+                            Close Profile
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="w-full lg:w-[450px] flex flex-col gap-4">
                 
+                {/* --- NEW: MINI PROFILE HEADER CARD --- */}
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-brand-light rounded-full flex items-center justify-center text-xl border-2 border-white shadow-sm">👨‍🚀</div>
+                        <div>
+                            <h3 className="font-extrabold text-brand-dark text-lg leading-tight">{user.name}</h3>
+                            <button onClick={() => setShowProfile(true)} className="text-xs font-bold text-brand hover:underline mt-0.5 inline-block">View Full Profile</button>
+                        </div>
+                    </div>
+                    <span className={`px-2 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border ${user.account_status === 'pending' ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-green-50 text-green-700 border-green-200'}`}>
+                        {user.account_status || 'Active'}
+                    </span>
+                </div>
+
                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
                     <span className="font-extrabold text-brand-dark">Location Mode</span>
                     <div className="flex bg-gray-100 rounded-xl p-1">
@@ -148,7 +205,6 @@ const RiderDashboard = () => {
                                 <div className="flex justify-between items-start mb-4">
                                     <h4 className="font-extrabold text-xl text-brand-dark flex flex-col gap-1">
                                         {b.passenger_name}
-                                        {/* --- NEW: Open Pool Visual Badge --- */}
                                         {b.rider_id === null && (
                                             <span className="bg-red-50 text-red-600 text-[10px] px-2 py-0.5 rounded uppercase tracking-wider font-black border border-red-200 w-max">
                                                 🚨 Open Request

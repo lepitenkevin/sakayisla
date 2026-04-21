@@ -7,15 +7,21 @@ const SuperAdmin = () => {
     const [users, setUsers] = useState([]);
     const [editingUser, setEditingUser] = useState(null);
     
+    // --- NEW: State to hold newly uploaded files in the Edit Modal ---
+    const [editFiles, setEditFiles] = useState({ license_image: null, or_image: null, cr_image: null });
+    
+    const [viewingUser, setViewingUser] = useState(null); 
+    
     // Advanced Filters & Sorting
     const [roleFilter, setRoleFilter] = useState('rider'); 
+    const [riderStatusFilter, setRiderStatusFilter] = useState('pending'); 
+    
     const [searchQuery, setSearchQuery] = useState('');
     const [sortOption, setSortOption] = useState('name-asc'); 
 
     // Bookings State
     const [bookings, setBookings] = useState([]);
 
-    // --- HELPER FOR HEADERS ---
     const apiHeaders = {
         'Content-Type': 'application/json',
         'x-api-key': import.meta.env.VITE_API_ACCESS_KEY,
@@ -23,24 +29,14 @@ const SuperAdmin = () => {
     };
 
     const fetchUsers = () => {
-        fetch(`${import.meta.env.VITE_API_BASE_URL}admin_users.php`, {
-            headers: { 
-                'x-api-key': import.meta.env.VITE_API_ACCESS_KEY, 
-                'x-api-secret': import.meta.env.VITE_API_SECRET_KEY 
-            }
-        })
+        fetch(`${import.meta.env.VITE_API_BASE_URL}admin_users.php`, { headers: apiHeaders })
             .then(res => res.json())
             .then(data => { if (data.status === 'success') setUsers(data.data); })
             .catch(err => console.error("Error fetching users:", err));
     };
 
     const fetchBookings = () => {
-        fetch(`${import.meta.env.VITE_API_BASE_URL}admin_bookings.php`, {
-            headers: { 
-                'x-api-key': import.meta.env.VITE_API_ACCESS_KEY, 
-                'x-api-secret': import.meta.env.VITE_API_SECRET_KEY 
-            }
-        })
+        fetch(`${import.meta.env.VITE_API_BASE_URL}admin_bookings.php`, { headers: apiHeaders })
             .then(res => res.json())
             .then(data => { if (data.status === 'success') setBookings(data.data); })
             .catch(err => console.error("Error fetching bookings:", err));
@@ -65,15 +61,67 @@ const SuperAdmin = () => {
         }
     };
 
+    // --- NEW: Wrapper to clear file state when opening the Edit Modal ---
+    const openEditModal = (user) => {
+        setEditingUser(user);
+        setEditFiles({ license_image: null, or_image: null, cr_image: null });
+    };
+
+    // --- UPGRADED: Uses FormData and POST to support file uploads ---
     const handleUpdateUser = async (e) => {
         e.preventDefault();
-        await fetch(`${import.meta.env.VITE_API_BASE_URL}admin_users.php`, { 
-            method: 'PUT', 
-            body: JSON.stringify(editingUser),
-            headers: apiHeaders
-        });
-        setEditingUser(null);
-        fetchUsers();
+
+        const formData = new FormData();
+        formData.append('_method', 'PUT'); 
+        formData.append('id', editingUser.id);
+        formData.append('name', editingUser.name);
+        formData.append('email', editingUser.email);
+        formData.append('contact_number', editingUser.contact_number);
+        formData.append('role', editingUser.role);
+
+        if (editingUser.role === 'rider') {
+            formData.append('motorcycle_model', editingUser.motorcycle_model || '');
+            formData.append('plate_number', editingUser.plate_number || '');
+            if (editFiles.license_image) formData.append('license_image', editFiles.license_image);
+            if (editFiles.or_image) formData.append('or_image', editFiles.or_image);
+            if (editFiles.cr_image) formData.append('cr_image', editFiles.cr_image);
+        }
+
+        try {
+            const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}admin_users.php`, { 
+                method: 'POST', 
+                body: formData,
+                headers: { 
+                    'x-api-key': import.meta.env.VITE_API_ACCESS_KEY,
+                    'x-api-secret': import.meta.env.VITE_API_SECRET_KEY
+                }
+            });
+            
+            const data = await res.json();
+            
+            // Wait! Did the server actually succeed?
+            if (data.status !== 'success') {
+                alert("Error saving updates: " + data.message);
+                return; // Stop right here, don't close the modal!
+            }
+            
+            setEditingUser(null);
+            fetchUsers();
+        } catch (error) {
+            alert("Failed to connect to the server.");
+        }
+    };
+
+    const handleApproveRider = async (id) => {
+        if (window.confirm("Approve this rider's documents? They will now be able to accept rides.")) {
+            await fetch(`${import.meta.env.VITE_API_BASE_URL}admin_users.php`, { 
+                method: 'PUT', 
+                body: JSON.stringify({ id, account_status: 'approved' }),
+                headers: apiHeaders
+            });
+            setViewingUser(null);
+            fetchUsers();
+        }
     };
 
     // --- BOOKINGS CRUD ---
@@ -101,6 +149,13 @@ const SuperAdmin = () => {
     const processedUsers = users
         .filter(user => user.role === roleFilter)
         .filter(user => {
+            if (roleFilter === 'rider') {
+                const status = user.account_status || 'approved'; 
+                return status === riderStatusFilter;
+            }
+            return true; 
+        })
+        .filter(user => {
             if (!searchQuery) return true;
             const lowerQuery = searchQuery.toLowerCase();
             return user.name.toLowerCase().includes(lowerQuery) || user.email.toLowerCase().includes(lowerQuery);
@@ -120,7 +175,6 @@ const SuperAdmin = () => {
                     <p className="text-gray-500 font-medium">Manage SakayIsla ecosystem.</p>
                 </div>
                 
-                {/* Main Tabs */}
                 <div className="flex bg-gray-100 p-1 rounded-xl">
                     <button onClick={() => setActiveTab('users')} className={`px-6 py-2 rounded-lg font-bold transition ${activeTab === 'users' ? 'bg-white shadow text-brand-dark' : 'text-gray-500'}`}>Users</button>
                     <button onClick={() => setActiveTab('bookings')} className={`px-6 py-2 rounded-lg font-bold transition ${activeTab === 'bookings' ? 'bg-white shadow text-brand-dark' : 'text-gray-500'}`}>Active Bookings</button>
@@ -131,12 +185,26 @@ const SuperAdmin = () => {
             {activeTab === 'users' && (
                 <div>
                     <div className="flex flex-col lg:flex-row justify-between gap-4 mb-6">
-                        <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0">
-                            <button onClick={() => setRoleFilter('rider')} className={`px-5 py-2 rounded-full text-sm font-bold transition whitespace-nowrap ${roleFilter === 'rider' ? 'bg-brand text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>🛵 Riders</button>
-                            <button onClick={() => setRoleFilter('passenger')} className={`px-5 py-2 rounded-full text-sm font-bold transition whitespace-nowrap ${roleFilter === 'passenger' ? 'bg-brand text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>🚶‍♂️ Passengers</button>
+                        
+                        <div className="flex flex-col gap-3">
+                            <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0">
+                                <button onClick={() => setRoleFilter('rider')} className={`px-5 py-2 rounded-full text-sm font-bold transition whitespace-nowrap ${roleFilter === 'rider' ? 'bg-brand text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>🛵 Riders</button>
+                                <button onClick={() => setRoleFilter('passenger')} className={`px-5 py-2 rounded-full text-sm font-bold transition whitespace-nowrap ${roleFilter === 'passenger' ? 'bg-brand text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>🚶‍♂️ Passengers</button>
+                            </div>
+
+                            {roleFilter === 'rider' && (
+                                <div className="flex gap-2 border-l-2 border-brand pl-3 ml-2">
+                                    <button onClick={() => setRiderStatusFilter('pending')} className={`px-4 py-1.5 rounded-lg text-xs font-extrabold uppercase tracking-wider transition ${riderStatusFilter === 'pending' ? 'bg-orange-100 text-orange-800 border border-orange-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                                        Pending Review
+                                    </button>
+                                    <button onClick={() => setRiderStatusFilter('approved')} className={`px-4 py-1.5 rounded-lg text-xs font-extrabold uppercase tracking-wider transition ${riderStatusFilter === 'approved' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                                        Approved Active
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
-                        <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="flex flex-col sm:flex-row gap-3 items-start lg:items-center">
                             <input 
                                 type="text" 
                                 placeholder="Search name or email..." 
@@ -194,7 +262,12 @@ const SuperAdmin = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <button onClick={() => setEditingUser(user)} className="text-brand font-bold mr-4 hover:underline">Edit</button>
+                                                <button onClick={() => setViewingUser(user)} className="text-brand-dark font-extrabold mr-4 hover:underline">
+                                                    {user.role === 'rider' && user.account_status === 'pending' ? '🚨 Review Docs' : 'View'}
+                                                </button>
+                                                
+                                                {/* Uses the new openEditModal wrapper */}
+                                                <button onClick={() => openEditModal(user)} className="text-brand font-bold mr-4 hover:underline">Edit</button>
                                                 {user.role !== 'superadmin' && (
                                                     <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 font-bold hover:underline">Delete</button>
                                                 )}
@@ -230,10 +303,90 @@ const SuperAdmin = () => {
                 </div>
             )}
 
+            {/* SINGLE VIEW / REVIEW MODAL */}
+            {viewingUser && (
+                <div className="fixed inset-0 bg-black/70 flex items-start justify-center z-[100] p-4 overflow-y-auto backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full my-8 overflow-hidden animate-fade-in">
+                        
+                        <div className="bg-brand-dark p-6 flex justify-between items-center text-white">
+                            <div>
+                                <h3 className="text-2xl font-extrabold">{viewingUser.name}</h3>
+                                <p className="text-brand-light font-medium">{viewingUser.role.toUpperCase()} PROFILE</p>
+                            </div>
+                            <button onClick={() => setViewingUser(null)} className="text-white hover:text-gray-300 font-bold text-xl">✕</button>
+                        </div>
+
+                        <div className="p-6 md:p-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Email</p>
+                                    <p className="font-extrabold text-gray-800">{viewingUser.email}</p>
+                                </div>
+                                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Contact</p>
+                                    <p className="font-extrabold text-gray-800">{viewingUser.contact_number}</p>
+                                </div>
+                            </div>
+
+                            {viewingUser.role === 'rider' && (
+                                <div className="border-t border-gray-200 pt-8">
+                                    <h4 className="text-xl font-extrabold text-gray-800 mb-6">Vehicle & Documents</h4>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Motorcycle</p>
+                                            <p className="font-extrabold text-gray-800">{viewingUser.motorcycle_model || 'N/A'}</p>
+                                        </div>
+                                        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Plate Number</p>
+                                            <p className="font-extrabold text-gray-800 uppercase">{viewingUser.plate_number || 'N/A'}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-700 mb-2">Driver's License</p>
+                                            {viewingUser.license_image ? (
+                                                <img src={`${import.meta.env.VITE_API_BASE_URL}${viewingUser.license_image}`} alt="License" className="w-full h-auto max-h-[400px] object-contain rounded-xl border-2 border-gray-200 bg-gray-50" />
+                                            ) : <p className="text-gray-400 italic">No image uploaded</p>}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-700 mb-2">Official Receipt (OR)</p>
+                                            {viewingUser.or_image ? (
+                                                <img src={`${import.meta.env.VITE_API_BASE_URL}${viewingUser.or_image}`} alt="OR" className="w-full h-auto max-h-[400px] object-contain rounded-xl border-2 border-gray-200 bg-gray-50" />
+                                            ) : <p className="text-gray-400 italic">No image uploaded</p>}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-700 mb-2">Certificate of Registration (CR)</p>
+                                            {viewingUser.cr_image ? (
+                                                <img src={`${import.meta.env.VITE_API_BASE_URL}${viewingUser.cr_image}`} alt="CR" className="w-full h-auto max-h-[400px] object-contain rounded-xl border-2 border-gray-200 bg-gray-50" />
+                                            ) : <p className="text-gray-400 italic">No image uploaded</p>}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="bg-gray-50 p-6 flex justify-end gap-3 border-t border-gray-200">
+                            <button onClick={() => setViewingUser(null)} className="px-6 py-3 bg-white border border-gray-200 hover:bg-gray-100 text-gray-800 font-bold rounded-xl transition">
+                                Close
+                            </button>
+                            
+                            {viewingUser.role === 'rider' && viewingUser.account_status === 'pending' && (
+                                <button onClick={() => handleApproveRider(viewingUser.id)} className="px-8 py-3 bg-brand hover:bg-brand-dark text-white font-extrabold rounded-xl shadow-md transition">
+                                    Approve Rider
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* EDIT USER MODAL */}
             {editingUser && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full">
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[110] p-4 overflow-y-auto">
+                    {/* Added max-h and overflow-y-auto so the modal scrolls if it gets too tall with the new file inputs */}
+                    <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
                         <h3 className="text-2xl font-extrabold mb-4">Edit Profile</h3>
                         <form onSubmit={handleUpdateUser} className="flex flex-col gap-4">
                             <div>
@@ -256,7 +409,36 @@ const SuperAdmin = () => {
                                     <option value="superadmin">Superadmin</option>
                                 </select>
                             </div>
-                            <div className="flex gap-2 mt-6">
+
+                            {/* --- UPGRADED: Rider Edit Fields for FB Manual Approvals --- */}
+                            {editingUser.role === 'rider' && (
+                                <div className="border-t border-gray-200 mt-2 pt-4 space-y-4">
+                                    <h4 className="font-extrabold text-brand-dark uppercase tracking-wide text-xs">Rider Documents</h4>
+                                    <div>
+                                        <label className="text-sm font-bold text-gray-700">Motorcycle Model</label>
+                                        <input type="text" value={editingUser.motorcycle_model || ''} onChange={e => setEditingUser({...editingUser, motorcycle_model: e.target.value})} className="w-full p-3 border rounded-xl mt-1" />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-bold text-gray-700">Plate Number</label>
+                                        <input type="text" value={editingUser.plate_number || ''} onChange={e => setEditingUser({...editingUser, plate_number: e.target.value})} className="w-full p-3 border rounded-xl mt-1 uppercase" />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-500 block mb-1">Update Driver's License</label>
+                                        <input type="file" onChange={e => setEditFiles({...editFiles, license_image: e.target.files[0]})} className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-brand-light file:text-brand-dark file:font-bold w-full" accept="image/*" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-500 block mb-1">Update Official Receipt (OR)</label>
+                                        <input type="file" onChange={e => setEditFiles({...editFiles, or_image: e.target.files[0]})} className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-brand-light file:text-brand-dark file:font-bold w-full" accept="image/*" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-500 block mb-1">Update Certificate of Reg. (CR)</label>
+                                        <input type="file" onChange={e => setEditFiles({...editFiles, cr_image: e.target.files[0]})} className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-brand-light file:text-brand-dark file:font-bold w-full" accept="image/*" />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex gap-2 mt-4 border-t border-gray-100 pt-4">
                                 <button type="button" onClick={() => setEditingUser(null)} className="flex-1 p-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition">Cancel</button>
                                 <button type="submit" className="flex-1 p-3 bg-brand hover:bg-brand-dark text-white font-bold rounded-xl transition">Save Changes</button>
                             </div>

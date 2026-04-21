@@ -54,6 +54,9 @@ const PassengerDashboard = () => {
     const [activePinMode, setActivePinMode] = useState('pickup'); 
     const [hasDestination, setHasDestination] = useState(false); 
     
+    // --- NEW: State for showing the booked rider's profile ---
+    const [showRiderProfile, setShowRiderProfile] = useState(false);
+    
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -155,7 +158,7 @@ const PassengerDashboard = () => {
 
         const payload = { 
             passenger_id: user.id, 
-            rider_id: riderId || null, // null triggers the broadcast
+            rider_id: riderId || null, 
             pickup_lat: pickupLocation.lat, pickup_lng: pickupLocation.lng,
             dropoff_lat: hasDestination ? dropoffLocation.lat : null, dropoff_lng: hasDestination ? dropoffLocation.lng : null,
             remarks: remarks
@@ -212,6 +215,40 @@ const PassengerDashboard = () => {
                 </div>
             )}
 
+            {/* --- NEW: BOOKED RIDER PROFILE MODAL --- */}
+            {showRiderProfile && activeBooking && activeBooking.rider_id && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full shadow-2xl relative">
+                        <button onClick={() => setShowRiderProfile(false)} className="absolute top-4 right-5 text-gray-400 hover:text-gray-800 text-2xl font-bold transition">✕</button>
+                        
+                        <div className="text-center mb-6">
+                            <div className="w-20 h-20 bg-brand-light rounded-full flex items-center justify-center text-4xl mx-auto mb-3 border-4 border-white shadow-sm ring-2 ring-brand/20">👨‍🚀</div>
+                            <h2 className="text-2xl font-extrabold text-brand-dark">{activeBooking.rider_name}</h2>
+                            <p className="text-sm font-bold text-gray-500 uppercase tracking-wider mt-1 flex items-center justify-center gap-1">
+                                <span className="text-green-500">✅</span> Verified Rider
+                            </p>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Contact Information</p>
+                                <p className="font-bold text-gray-800 flex items-center gap-2"><span className="text-lg">📞</span> {activeBooking.rider_contact || 'No contact info'}</p>
+                            </div>
+                            
+                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Vehicle Details</p>
+                                <p className="font-bold text-gray-800 flex items-center gap-2"><span className="text-lg">🛵</span> {activeBooking.motorcycle_model || 'Not Provided'}</p>
+                                <p className="font-bold text-gray-800 flex items-center gap-2 mt-2 uppercase"><span className="text-lg">🏷️</span> {activeBooking.plate_number || 'Not Provided'}</p>
+                            </div>
+                        </div>
+
+                        <button onClick={() => setShowRiderProfile(false)} className="w-full mt-6 bg-brand hover:bg-brand-dark text-white font-extrabold py-3.5 rounded-xl transition shadow-md">
+                            Close Profile
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="w-full lg:w-[400px] flex flex-col gap-4">
                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex-1 overflow-y-auto">
                     <h2 className="text-2xl font-extrabold text-brand-dark mb-6">Where to?</h2>
@@ -234,7 +271,12 @@ const PassengerDashboard = () => {
                                     <div className="flex justify-between items-start mb-4 border-b border-gray-100 pb-4">
                                         <div>
                                             <h3 className="font-black text-brand-dark text-xl">Rider's Offer</h3>
-                                            <p className="text-gray-500 font-medium text-sm mt-1">{activeBooking.rider_name}</p>
+                                            
+                                            {/* --- NEW: View Profile Link next to name --- */}
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <p className="text-gray-500 font-medium text-sm">{activeBooking.rider_name}</p>
+                                                <button onClick={() => setShowRiderProfile(true)} className="text-xs font-bold text-brand hover:underline">View Profile</button>
+                                            </div>
                                         </div>
                                         <div className="text-right bg-green-50 px-4 py-2 rounded-xl border border-green-100">
                                             <p className="text-[10px] font-bold text-green-700 uppercase tracking-wider mb-0.5">Asking Fare</p>
@@ -261,7 +303,11 @@ const PassengerDashboard = () => {
                                     <div className="bg-white rounded-xl p-4 shadow-sm mb-4 border-l-4 border-brand">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <p className="font-extrabold text-gray-800 text-xl">{activeBooking.rider_name}</p>
+                                                {/* --- NEW: View Profile Link next to accepted rider name --- */}
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <p className="font-extrabold text-gray-800 text-xl">{activeBooking.rider_name}</p>
+                                                    <button onClick={() => setShowRiderProfile(true)} className="text-xs font-bold text-brand hover:underline mt-1">View Profile</button>
+                                                </div>
                                                 <p className="text-gray-500 text-sm font-medium">{activeBooking.motorcycle_model} • <span className="uppercase">{activeBooking.plate_number}</span></p>
                                             </div>
                                             <div className="text-right bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
@@ -343,7 +389,6 @@ const PassengerDashboard = () => {
                                        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand transition" />
                             </div>
 
-                            {/* --- NEW: Broadcast Action Buttons --- */}
                             <div className="flex flex-col gap-3 mt-2">
                                 <button 
                                     onClick={() => handleBook(null)} 
