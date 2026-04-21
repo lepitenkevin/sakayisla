@@ -158,7 +158,7 @@ const Register = () => {
                         <div className="bg-brand-light/30 p-5 rounded-2xl border border-brand/20 mt-2 space-y-5 animate-fade-in">
                             <h3 className="font-extrabold text-brand-dark text-sm uppercase tracking-wider flex items-center justify-between">
                                 <span>Vehicle & Documents</span>
-                                <span className="text-[10px] bg-orange-100 text-orange-800 px-2 py-1 rounded-md">Pending Approval</span>
+                                <span className="text-[10px] bg-orange-100 text-orange-800 px-2 py-1 rounded-md">Subject For Approval</span>
                             </h3>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
