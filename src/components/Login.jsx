@@ -64,7 +64,11 @@ const Login = () => {
                         <input type="password" name="password" required onChange={handleChange} 
                                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition" />
                     </div>
-                    
+                    <div className="text-right mt-1">
+                        <Link to="/forgot-password" className="text-sm font-bold text-brand hover:underline">
+                            Forgot Password?
+                        </Link>
+                    </div>
                     <button type="submit" className="w-full bg-brand hover:bg-brand-dark text-white font-extrabold py-3.5 rounded-xl mt-4 shadow-md transition duration-200">
                         Log In
                     </button>

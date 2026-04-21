@@ -10,6 +10,7 @@ import ContactUs from './components/ContactUs';
 import TermsOfService from './components/TermsOfService';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import HelpCenter from './components/HelpCenter';
+import ForgotPassword from './components/ForgotPassword';
 import { Analytics } from "@vercel/analytics/react"
 
 // --- ROUTE GUARD COMPONENT ---
@@ -139,6 +140,7 @@ function App() {
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/help" element={<HelpCenter />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
 
             {/* Protected Routes */}
             <Route 
