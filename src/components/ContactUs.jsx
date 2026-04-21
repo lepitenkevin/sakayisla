@@ -59,6 +59,17 @@ const ContactUs = () => {
                                 </div>
                             </a>
 
+                            {/* Phone */}
+                            <a href="tel: +639318769619 " className="flex items-center gap-4 hover:text-brand-light transition group">
+                                <div className="bg-white/10 p-4 rounded-2xl group-hover:bg-white/20 transition">
+                                    <span className="text-2xl">📞</span>
+                                </div>
+                                <div>
+                                    <p className="text-brand-light text-sm font-bold uppercase tracking-wider mb-1">Call / Text Us</p>
+                                    <p className="text-lg">+63 931 876 9619 (Sante Fe. Office)</p>
+                                </div>
+                            </a>
+
                             {/* Facebook */}
                             <a href="https://fb.com/sakayisla" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 hover:text-brand-light transition group">
                                 <div className="bg-white/10 p-4 rounded-2xl group-hover:bg-white/20 transition">
@@ -71,7 +82,7 @@ const ContactUs = () => {
                             </a>
 
                             {/* Instagram */}
-                            <a href="https://ig.com/sakayisla" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 hover:text-brand-light transition group">
+                            <a href="#" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 hover:text-brand-light transition group">
                                 <div className="bg-white/10 p-4 rounded-2xl group-hover:bg-white/20 transition">
                                     <span className="text-2xl">📸</span>
                                 </div>
