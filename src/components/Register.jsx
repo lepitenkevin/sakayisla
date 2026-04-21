@@ -181,12 +181,12 @@ const Register = () => {
                                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-brand file:text-white hover:file:bg-brand-dark transition cursor-pointer" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Official Receipt (OR) Photo</label>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Vehicle Official Receipt (OR) Photo</label>
                                     <input type="file" name="or_image" accept="image/*" capture="environment" required onChange={handleFileChange}
                                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-brand file:text-white hover:file:bg-brand-dark transition cursor-pointer" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Certificate of Registration (CR)</label>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Vehicle Certificate of Registration (CR)</label>
                                     <input type="file" name="cr_image" accept="image/*" capture="environment" required onChange={handleFileChange}
                                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-brand file:text-white hover:file:bg-brand-dark transition cursor-pointer" />
                                 </div>
