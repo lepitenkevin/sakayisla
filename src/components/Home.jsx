@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -12,25 +12,6 @@ const availableRiderIcon = new L.Icon({
     iconSize: [25, 41], 
     iconAnchor: [12, 41] 
 });
-
-// --- NEW: Smart Camera to Auto-Fit All Riders on the Map ---
-const AutoFitRiders = ({ riders }) => {
-    const map = useMap();
-    
-    useEffect(() => {
-        const activeRiders = riders.filter(r => r.current_lat && r.current_lng);
-        if (activeRiders.length > 0) {
-            // Gather all rider coordinates
-            const bounds = L.latLngBounds(activeRiders.map(r => [parseFloat(r.current_lat), parseFloat(r.current_lng)]));
-            // Ensure Bantayan center is included so the map doesn't zoom in too close on just one rider
-            bounds.extend([11.1965, 123.7745]); 
-            // Smoothly fly the camera to fit everyone
-            map.flyToBounds(bounds, { padding: [50, 50], maxZoom: 14, duration: 1.5 });
-        }
-    }, [riders, map]);
-    
-    return null;
-};
 
 const Home = () => {
     const [riders, setRiders] = useState([]);
@@ -93,7 +74,7 @@ const Home = () => {
 
                 <div className="h-[400px] md:h-[500px] w-full rounded-3xl overflow-hidden shadow-sm border border-gray-200 relative z-0">
                     
-                    {/* --- NEW: Map Legend for Visitors --- */}
+                    {/* Map Legend for Visitors */}
                     <div className="absolute bottom-6 left-4 z-[1000] bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-lg border border-gray-100 text-xs font-extrabold text-gray-700 flex flex-col gap-3">
                         <div className="flex items-center gap-3">
                             <img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png" className="w-4 h-6 drop-shadow-sm" alt="Available Rider" /> 
@@ -101,11 +82,9 @@ const Home = () => {
                         </div>
                     </div>
 
+                    {/* Locked to Bantayan Island coordinates */}
                     <MapContainer center={[11.1965, 123.7745]} zoom={13} className="h-full w-full z-0" scrollWheelZoom={false}>
                         <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
-                        
-                        {/* Fires the auto-zoom logic */}
-                        <AutoFitRiders riders={riders} />
 
                         {riders.filter(r => r.current_lat && r.current_lng).map(rider => (
                             <Marker key={rider.id} position={[parseFloat(rider.current_lat), parseFloat(rider.current_lng)]} icon={availableRiderIcon}>
