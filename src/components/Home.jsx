@@ -83,7 +83,7 @@ const Home = () => {
                     </div>
 
                     {/* Locked to Bantayan Island coordinates */}
-                    <MapContainer center={[11.1965, 123.7745]} zoom={13} className="h-full w-full z-0" scrollWheelZoom={false}>
+                    <MapContainer center={[11.2185, 123.7445]} zoom={12} className="h-full w-full z-0" scrollWheelZoom={false}>
                         <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
 
                         {riders.filter(r => r.current_lat && r.current_lng).map(rider => (
