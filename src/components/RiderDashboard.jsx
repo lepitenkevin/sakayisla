@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents, useMap } from 'react-leaflet';
-import { useNavigate } from 'react-router-dom'; // --- NEW: Needed for logging them out ---
+import { useNavigate } from 'react-router-dom'; 
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -44,7 +44,7 @@ const AutoPan = ({ position }) => {
 };
 
 const RiderDashboard = () => {
-    const navigate = useNavigate(); // --- NEW: Initialize navigator ---
+    const navigate = useNavigate(); 
     
     const [bookings, setBookings] = useState([]);
     const [selectedBookingForMap, setSelectedBookingForMap] = useState(null);
@@ -67,7 +67,7 @@ const RiderDashboard = () => {
     };
 
     const fetchBookings = () => {
-        if (!user || user.account_status === 'pending') return; // Stop fetching if pending
+        if (!user || user.account_status === 'pending') return; 
         fetch(`${import.meta.env.VITE_API_BASE_URL}rider_bookings.php?rider_id=${user.id}`, { headers: apiHeaders })
             .then(res => res.json())
             .then(data => { if(data.status === 'success') setBookings(data.data); })
@@ -75,7 +75,7 @@ const RiderDashboard = () => {
     };
 
     useEffect(() => {
-        if (!user || user.account_status === 'pending') return; // Don't run intervals if pending
+        if (!user || user.account_status === 'pending') return; 
         fetchBookings();
         const interval = setInterval(fetchBookings, 5000);
         return () => clearInterval(interval);
@@ -117,7 +117,11 @@ const RiderDashboard = () => {
                 return alert("Error saving fare: " + data.message);
             }
 
-            if (newStatus === 'completed') setSelectedBookingForMap(null);
+            // --- UPGRADED: Clear the map if the ride is finished OR cancelled ---
+            if (newStatus === 'completed' || newStatus === 'cancelled') {
+                setSelectedBookingForMap(null);
+            }
+            
             setAcceptingId(null);
             setAskingFare("");
             setEditingFareId(null);
@@ -128,17 +132,14 @@ const RiderDashboard = () => {
     };
 
     useEffect(() => {
-        // If there is no user, OR if their data is old (missing account_status)
         if (!user || user.account_status === undefined) {
-            localStorage.removeItem('user'); // Destroy old ghost data
-            navigate('/login'); // Safely redirect
+            localStorage.removeItem('user'); 
+            navigate('/login'); 
         }
     }, [navigate, user]);
 
-    // Prevent the rest of the app from rendering while redirecting
     if (!user || user.account_status === undefined) return null;
 
-    // THE PENDING BLOCKER (Safely renders if status is exactly 'pending')
     if (user.account_status === 'pending') {
         return (
             <div className="flex items-center justify-center h-[80vh] px-4">
@@ -154,41 +155,6 @@ const RiderDashboard = () => {
                         onClick={() => {
                             localStorage.removeItem('user');
                             navigate('/login');
-                        }} 
-                        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-extrabold py-4 rounded-xl transition shadow-sm"
-                    >
-                        Log Out for Now
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    if (!user) return null;
-
-    // 2. If their local storage is outdated (missing account_status), force a fresh login!
-    if (user.account_status === undefined) {
-        localStorage.removeItem('user');
-        window.location.href = '/login'; // Redirect to login page
-        return null;
-    }
-
-    // 3. THE PENDING BLOCKER
-    if (user.account_status === 'pending') {
-        return (
-            <div className="flex items-center justify-center h-[80vh] px-4">
-                <div className="bg-white p-8 md:p-12 rounded-3xl shadow-lg max-w-lg w-full text-center border border-gray-100">
-                    <div className="w-24 h-24 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-6 text-5xl border-4 border-orange-100">
-                        ⏳
-                    </div>
-                    <h2 className="text-2xl md:text-3xl font-extrabold text-brand-dark mb-4">Account Under Review</h2>
-                    <p className="text-gray-500 font-medium mb-8 leading-relaxed">
-                        Thank you for registering as a rider! Your submitted documents are currently being reviewed by our admin team. We will send you an email as soon as you are approved to start accepting rides.
-                    </p>
-                    <button 
-                        onClick={() => {
-                            localStorage.removeItem('user');
-                            window.location.href = '/login';
                         }} 
                         className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-extrabold py-4 rounded-xl transition shadow-sm"
                     >
@@ -357,12 +323,32 @@ const RiderDashboard = () => {
                                                 <button onClick={() => { setEditFareValue(b.fare); setEditingFareId(b.id || b.booking_id); }} className="text-sm font-bold text-orange-600 hover:underline">
                                                     Negotiate / Update Fare
                                                 </button>
+                                                {/* --- NEW: Rider can cancel their offer if the passenger is taking too long --- */}
+                                                <button onClick={() => { if(window.confirm("Are you sure you want to withdraw this offer?")) updateStatus((b.id || b.booking_id), 'cancelled'); }} className="text-xs font-bold text-red-500 hover:underline mt-1">
+                                                    Cancel Offer
+                                                </button>
                                             </div>
                                         )
                                     ) : (
-                                        <button onClick={() => updateStatus((b.id || b.booking_id), 'completed')} className="w-full bg-brand-dark hover:bg-black text-white font-extrabold py-3.5 rounded-xl transition shadow-sm">
-                                            Finish Ride
-                                        </button>
+                                        <div className="flex gap-2">
+                                            {/* --- NEW: Cancel button for accepted rides --- */}
+                                            <button 
+                                                onClick={() => {
+                                                    if(window.confirm("Cancel this ride? Do this only if you cannot contact the passenger.")) {
+                                                        updateStatus((b.id || b.booking_id), 'cancelled');
+                                                    }
+                                                }} 
+                                                className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3.5 rounded-xl transition"
+                                            >
+                                                Cancel Ride
+                                            </button>
+                                            <button 
+                                                onClick={() => updateStatus((b.id || b.booking_id), 'completed')} 
+                                                className="flex-[2] bg-brand-dark hover:bg-black text-white font-extrabold py-3.5 rounded-xl transition shadow-sm"
+                                            >
+                                                Finish Ride
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                             </div>
