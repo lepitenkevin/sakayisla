@@ -1,7 +1,64 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Setup the custom Leaflet icon for available riders
+const iconShadow = 'leaflet/dist/images/marker-shadow.png';
+const availableRiderIcon = new L.Icon({ 
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', 
+    shadowUrl: iconShadow, 
+    iconSize: [25, 41], 
+    iconAnchor: [12, 41] 
+});
+
+// --- NEW: Smart Camera to Auto-Fit All Riders on the Map ---
+const AutoFitRiders = ({ riders }) => {
+    const map = useMap();
+    
+    useEffect(() => {
+        const activeRiders = riders.filter(r => r.current_lat && r.current_lng);
+        if (activeRiders.length > 0) {
+            // Gather all rider coordinates
+            const bounds = L.latLngBounds(activeRiders.map(r => [parseFloat(r.current_lat), parseFloat(r.current_lng)]));
+            // Ensure Bantayan center is included so the map doesn't zoom in too close on just one rider
+            bounds.extend([11.1965, 123.7745]); 
+            // Smoothly fly the camera to fit everyone
+            map.flyToBounds(bounds, { padding: [50, 50], maxZoom: 14, duration: 1.5 });
+        }
+    }, [riders, map]);
+    
+    return null;
+};
 
 const Home = () => {
+    const [riders, setRiders] = useState([]);
+
+    // Fetch active riders to display on the public map
+    useEffect(() => {
+        const fetchRiders = () => {
+            fetch(`${import.meta.env.VITE_API_BASE_URL}get_riders.php`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': import.meta.env.VITE_API_ACCESS_KEY,
+                    'x-api-secret': import.meta.env.VITE_API_SECRET_KEY
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'success') {
+                    setRiders(data.data);
+                }
+            })
+            .catch(err => console.error("Error fetching live riders:", err));
+        };
+
+        fetchRiders(); // Initial fetch
+        const interval = setInterval(fetchRiders, 8000); // Poll every 8 seconds
+        return () => clearInterval(interval);
+    }, []);
+
     return (
         <div className="flex flex-col gap-12 py-8">
             {/* Hero Section */}
@@ -16,6 +73,59 @@ const Home = () => {
                 </div>
                 {/* Decorative Shape */}
                 <div className="absolute -right-20 -bottom-20 w-96 h-96 bg-brand rounded-full blur-3xl opacity-50 z-0"></div>
+            </div>
+
+            {/* Live Public Map Section */}
+            <div>
+                <div className="flex justify-between items-end mb-6">
+                    <div>
+                        <h2 className="text-3xl font-extrabold text-brand-dark">Live Riders</h2>
+                        <p className="text-gray-500 font-medium">See active riders currently exploring the island.</p>
+                    </div>
+                    <div className="hidden md:flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
+                        <span className="relative flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                        </span>
+                        <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">{riders.filter(r => r.current_lat).length} Online</span>
+                    </div>
+                </div>
+
+                <div className="h-[400px] md:h-[500px] w-full rounded-3xl overflow-hidden shadow-sm border border-gray-200 relative z-0">
+                    
+                    {/* --- NEW: Map Legend for Visitors --- */}
+                    <div className="absolute bottom-6 left-4 z-[1000] bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-lg border border-gray-100 text-xs font-extrabold text-gray-700 flex flex-col gap-3">
+                        <div className="flex items-center gap-3">
+                            <img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png" className="w-4 h-6 drop-shadow-sm" alt="Available Rider" /> 
+                            Available Rider
+                        </div>
+                    </div>
+
+                    <MapContainer center={[11.1965, 123.7745]} zoom={13} className="h-full w-full z-0" scrollWheelZoom={false}>
+                        <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
+                        
+                        {/* Fires the auto-zoom logic */}
+                        <AutoFitRiders riders={riders} />
+
+                        {riders.filter(r => r.current_lat && r.current_lng).map(rider => (
+                            <Marker key={rider.id} position={[parseFloat(rider.current_lat), parseFloat(rider.current_lng)]} icon={availableRiderIcon}>
+                                <Popup className="rounded-2xl overflow-hidden shadow-2xl border-0 p-0 m-0">
+                                    <div className="p-5 min-w-[220px] text-center bg-white">
+                                        <div className="w-16 h-16 bg-brand-light rounded-full mx-auto mb-3 flex items-center justify-center text-3xl border-4 border-white shadow-sm ring-2 ring-brand/20">👨‍🚀</div>
+                                        <strong className="text-xl block text-gray-800 font-extrabold mb-1">{rider.name}</strong>
+                                        
+                                        <div className="bg-gray-50 rounded-xl p-3 mb-4 mt-2 border border-gray-100">
+                                            <p className="text-sm text-gray-600 font-medium mb-1 flex items-center justify-center gap-1.5"><span>🛵</span> {rider.motorcycle_model}</p>
+                                            <p className="text-sm uppercase font-extrabold text-gray-800 tracking-wider">{rider.plate_number}</p>
+                                        </div>
+
+                                        <Link to="/login" className="block w-full bg-brand hover:bg-brand-dark !text-white font-extrabold py-3 px-4 rounded-xl transition shadow-md ">Log in to Book</Link>
+                                    </div>
+                                </Popup>
+                            </Marker>
+                        ))}
+                    </MapContainer>
+                </div>
             </div>
 
             {/* Services Section */}
