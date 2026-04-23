@@ -4,7 +4,6 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Setup the custom Leaflet icon for available riders
 const iconShadow = 'leaflet/dist/images/marker-shadow.png';
 const availableRiderIcon = new L.Icon({ 
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', 
@@ -15,8 +14,10 @@ const availableRiderIcon = new L.Icon({
 
 const Home = () => {
     const [riders, setRiders] = useState([]);
+    
+    // --- NEW: State to control the APK guide popup ---
+    const [showInstallGuide, setShowInstallGuide] = useState(false);
 
-    // Fetch active riders to display on the public map
     useEffect(() => {
         const fetchRiders = () => {
             fetch(`${import.meta.env.VITE_API_BASE_URL}get_riders.php`, {
@@ -35,24 +36,83 @@ const Home = () => {
             .catch(err => console.error("Error fetching live riders:", err));
         };
 
-        fetchRiders(); // Initial fetch
-        const interval = setInterval(fetchRiders, 8000); // Poll every 8 seconds
+        fetchRiders(); 
+        const interval = setInterval(fetchRiders, 8000); 
         return () => clearInterval(interval);
     }, []);
 
     return (
-        <div className="flex flex-col gap-12 py-8">
+        <div className="flex flex-col gap-12 py-8 relative">
+            
+            {/* --- NEW: APK Installation Guide Modal --- */}
+            {showInstallGuide && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl relative">
+                        <button onClick={() => setShowInstallGuide(false)} className="absolute top-4 right-5 text-gray-400 hover:text-gray-800 text-2xl font-bold transition">✕</button>
+                        
+                        <div className="text-center mb-6">
+                            <div className="w-16 h-16 bg-brand-light rounded-full flex items-center justify-center text-3xl mx-auto mb-3 border-4 border-white shadow-sm ring-2 ring-brand/20">⚙️</div>
+                            <h3 className="text-2xl font-extrabold text-brand-dark">How to Install</h3>
+                        </div>
+                        
+                        <ol className="space-y-4 text-gray-600 font-medium text-sm">
+                            <li className="flex gap-3 items-start">
+                                <span className="bg-brand text-white w-6 h-6 rounded-full flex items-center justify-center font-bold shrink-0 text-xs mt-0.5">1</span> 
+                                <p>Download the APK file.</p>
+                            </li>
+                            <li className="flex gap-3 items-start">
+                                <span className="bg-brand text-white w-6 h-6 rounded-full flex items-center justify-center font-bold shrink-0 text-xs mt-0.5">2</span> 
+                                <p>Open the file. If Android shows a security warning, tap <strong>Settings</strong>.</p>
+                            </li>
+                            <li className="flex gap-3 items-start">
+                                <span className="bg-brand text-white w-6 h-6 rounded-full flex items-center justify-center font-bold shrink-0 text-xs mt-0.5">3</span> 
+                                <p>Toggle on <strong>"Allow from this source"</strong> (or "Unknown Sources").</p>
+                            </li>
+                            <li className="flex gap-3 items-start">
+                                <span className="bg-brand text-white w-6 h-6 rounded-full flex items-center justify-center font-bold shrink-0 text-xs mt-0.5">4</span> 
+                                <p>Go back, tap <strong>Install</strong>, and open the app!</p>
+                            </li>
+                        </ol>
+
+                        <button onClick={() => setShowInstallGuide(false)} className="w-full mt-8 bg-brand hover:bg-brand-dark text-white font-extrabold py-3.5 rounded-xl transition shadow-md">
+                            Got it!
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Hero Section */}
             <div className="bg-brand-dark rounded-3xl p-10 md:p-16 text-white shadow-xl relative overflow-hidden">
                 <div className="relative z-10 max-w-2xl">
                     <h1 className="text-4xl md:text-6xl font-extrabold mb-4 leading-tight">Your Island, <br/><span className="text-brand-light">Your Ride.</span></h1>
                     <p className="text-lg md:text-xl text-gray-200 mb-8 font-medium">Fast, reliable, and authentic Habal-Habal rides and padala services across Bantayan Island. Book local riders instantly.</p>
-                    <div className="flex gap-4">
-                        <Link to="/register" className="bg-white text-brand-dark px-8 py-4 rounded-xl font-extrabold hover:bg-gray-100 transition shadow-lg">Get Started</Link>
-                        <Link to="/login" className="bg-brand hover:bg-brand/80 text-white px-8 py-4 rounded-xl font-extrabold transition">Log In</Link>
+                    
+                    <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                        <Link to="/register" className="bg-white text-brand-dark px-8 py-4 rounded-xl font-extrabold text-center hover:bg-gray-100 transition shadow-lg">Get Started</Link>
+                        <Link to="/login" className="bg-brand hover:bg-brand/80 text-white px-8 py-4 rounded-xl font-extrabold text-center transition">Log In</Link>
+                    </div>
+
+                    <div className="flex flex-col items-center sm:items-start mt-2">
+                        <a 
+                            href="https://sakayisla.156-67-214-49.sslip.io/download/sakay-isla-androiddemo.apk" 
+                            className="flex items-center justify-center sm:justify-start gap-3 bg-white/10 hover:bg-white/20 border border-white/20 px-6 py-3 rounded-xl transition text-white w-full sm:w-max backdrop-blur-sm"
+                        >
+                            <span className="text-3xl drop-shadow-md">🤖</span>
+                            <div className="text-left">
+                                <span className="block text-[10px] font-bold uppercase tracking-wider opacity-80">Get the Demo App</span>
+                                <span className="block text-sm font-extrabold tracking-wide">Download for Android</span>
+                            </div>
+                        </a>
+                        
+                        {/* --- NEW: Trigger for the popup --- */}
+                        <button 
+                            onClick={() => setShowInstallGuide(true)} 
+                            className="text-white/60 hover:text-white text-xs font-medium mt-3 underline transition-colors"
+                        >
+                            Need help installing the APK?
+                        </button>
                     </div>
                 </div>
-                {/* Decorative Shape */}
                 <div className="absolute -right-20 -bottom-20 w-96 h-96 bg-brand rounded-full blur-3xl opacity-50 z-0"></div>
             </div>
 
@@ -73,8 +133,6 @@ const Home = () => {
                 </div>
 
                 <div className="h-[400px] md:h-[500px] w-full rounded-3xl overflow-hidden shadow-sm border border-gray-200 relative z-0">
-                    
-                    {/* Map Legend for Visitors */}
                     <div className="absolute bottom-6 left-4 z-[1000] bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-lg border border-gray-100 text-xs font-extrabold text-gray-700 flex flex-col gap-3">
                         <div className="flex items-center gap-3">
                             <img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png" className="w-4 h-6 drop-shadow-sm" alt="Available Rider" /> 
@@ -82,7 +140,6 @@ const Home = () => {
                         </div>
                     </div>
 
-                    {/* Locked to Bantayan Island coordinates */}
                     <MapContainer center={[11.2185, 123.7445]} zoom={12} className="h-full w-full z-0" scrollWheelZoom={false}>
                         <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
 
