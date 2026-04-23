@@ -77,7 +77,7 @@ const SuperAdmin = () => {
             formData.append('motorcycle_model', editingUser.motorcycle_model || '');
             formData.append('plate_number', editingUser.plate_number || '');
             if (editFiles.license_image) formData.append('license_image', editFiles.license_image);
-            if (editFiles.license_back_image) formData.append('license_back_image', editFiles.license_back_image); // NEW
+            if (editFiles.license_back_image) formData.append('license_back_image', editFiles.license_back_image);
             if (editFiles.or_image) formData.append('or_image', editFiles.or_image);
             if (editFiles.cr_image) formData.append('cr_image', editFiles.cr_image);
         }
@@ -281,6 +281,12 @@ const SuperAdmin = () => {
                                 <span className="font-extrabold text-gray-500">Ride #{b.id}</span>
                                 <span className="px-3 py-1 bg-orange-100 text-orange-800 text-xs font-extrabold rounded-lg uppercase">{b.status}</span>
                             </div>
+                            
+                            {/* --- NEW: Added the Date display right here --- */}
+                            <p className="text-sm text-gray-500 font-medium mb-3 flex items-center gap-2">
+                                📅 {b.created_at ? new Date(b.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : 'Unknown Date'}
+                            </p>
+
                             <p><strong>Passenger:</strong> {b.passenger_name}</p>
                             <p><strong>Rider:</strong> {b.rider_name || 'Unassigned'}</p>
                             <p className="text-sm text-gray-500 mt-2 bg-gray-50 p-2 rounded">Remarks: {b.remarks || 'None'}</p>
@@ -334,7 +340,6 @@ const SuperAdmin = () => {
                                         </div>
                                     </div>
 
-                                    {/* --- UPGRADED: Added License Back Image to View Modal --- */}
                                     <div className="space-y-6">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
@@ -409,7 +414,6 @@ const SuperAdmin = () => {
                                 </select>
                             </div>
 
-                            {/* --- UPGRADED: Added License Back Upload --- */}
                             {editingUser.role === 'rider' && (
                                 <div className="border-t border-gray-200 mt-2 pt-4 space-y-4">
                                     <h4 className="font-extrabold text-brand-dark uppercase tracking-wide text-xs">Rider Documents</h4>
