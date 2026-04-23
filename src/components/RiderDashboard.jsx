@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents, useMap 
 import { useNavigate } from 'react-router-dom'; 
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import useIdleLogout from '../hooks/useIdleLogout';
 
 const iconShadow = 'leaflet/dist/images/marker-shadow.png';
 const liveRiderIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: iconShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
@@ -45,6 +46,7 @@ const AutoPan = ({ position }) => {
 
 const RiderDashboard = () => {
     const navigate = useNavigate(); 
+    useIdleLogout(60);
     
     const [bookings, setBookings] = useState([]);
     const [selectedBookingForMap, setSelectedBookingForMap] = useState(null);

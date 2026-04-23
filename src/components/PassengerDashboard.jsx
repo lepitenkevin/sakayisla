@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents, Circle, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import useIdleLogout from '../hooks/useIdleLogout';
 
 const iconShadow = 'leaflet/dist/images/marker-shadow.png';
 const availableRiderIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', shadowUrl: iconShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
@@ -45,6 +46,7 @@ const MapController = ({ center }) => {
 };
 
 const PassengerDashboard = () => {
+    useIdleLogout(60);
     const [currentUser, setCurrentUser] = useState(JSON.parse(localStorage.getItem('user')));
     
     const initialPhone = currentUser?.contact_number?.startsWith('+63') 
