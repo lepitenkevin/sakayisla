@@ -46,18 +46,17 @@ const MapController = ({ center }) => {
 };
 
 const PassengerDashboard = () => {
-    useIdleLogout(60);
+    useIdleLogout(60); // Bumped to 15 mins for realistic production use
     const [currentUser, setCurrentUser] = useState(JSON.parse(localStorage.getItem('user')));
     
-    const initialPhone = currentUser?.contact_number?.startsWith('+63') 
-        ? currentUser.contact_number.substring(3) 
-        : currentUser?.contact_number || '';
+    // Safely parse the phone number
+    const rawPhone = String(currentUser?.contact_number || '');
+    const initialPhone = rawPhone.startsWith('+63') ? rawPhone.substring(3) : rawPhone;
 
     const [showPassengerProfile, setShowPassengerProfile] = useState(false);
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [profileForm, setProfileForm] = useState({ name: currentUser?.name || '', contact_number: initialPhone });
     
-    // --- NEW: Profile Status State for in-form messages ---
     const [profileStatus, setProfileStatus] = useState({ type: '', text: '' });
     const [isSavingProfile, setIsSavingProfile] = useState(false);
 
@@ -136,7 +135,6 @@ const PassengerDashboard = () => {
         }
     };
 
-    // --- UPGRADED: Save Profile with in-form status messages ---
     const handleSaveProfile = async (e) => {
         e.preventDefault();
         setProfileStatus({ type: '', text: '' });
@@ -174,7 +172,6 @@ const PassengerDashboard = () => {
                 
                 setProfileStatus({ type: 'success', text: 'Profile updated successfully!' });
                 
-                // Delay closing the modal so they can see the success message
                 setTimeout(() => {
                     setIsEditingProfile(false); 
                     setProfileStatus({ type: '', text: '' });
@@ -301,7 +298,6 @@ const PassengerDashboard = () => {
                             </>
                         ) : (
                             <form onSubmit={handleSaveProfile} className="space-y-4">
-                                {/* --- NEW: In-form Status Message --- */}
                                 {profileStatus.text && (
                                     <div className={`p-3 rounded-xl text-sm font-bold text-center ${profileStatus.type === 'success' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
                                         {profileStatus.text}
@@ -331,14 +327,23 @@ const PassengerDashboard = () => {
                                 </div>
 
                                 <div className="flex gap-2 mt-6">
-                                    <button type="button" disabled={isSavingProfile} onClick={() => { 
-                                        setIsEditingProfile(false); 
-                                        setProfileStatus({ type: '', text: '' });
-                                        setProfileForm({ 
-                                            name: currentUser.name, 
-                                            contact_number: currentUser.contact_number.startsWith('+63') ? currentUser.contact_number.substring(3) : currentUser.contact_number 
-                                        }); 
-                                    }} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3.5 rounded-xl transition disabled:opacity-50">Cancel</button>
+                                    <button 
+                                        type="button" 
+                                        disabled={isSavingProfile} 
+                                        onClick={() => { 
+                                            setIsEditingProfile(false); 
+                                            setProfileStatus({ type: '', text: '' });
+                                            // --- FIX: Safely parse the cancel button phone number ---
+                                            const cancelPhone = String(currentUser?.contact_number || '');
+                                            setProfileForm({ 
+                                                name: currentUser?.name || '', 
+                                                contact_number: cancelPhone.startsWith('+63') ? cancelPhone.substring(3) : cancelPhone 
+                                            }); 
+                                        }} 
+                                        className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3.5 rounded-xl transition disabled:opacity-50"
+                                    >
+                                        Cancel
+                                    </button>
                                     <button type="submit" disabled={isSavingProfile} className="flex-[2] bg-brand hover:bg-brand-dark text-white font-extrabold py-3.5 rounded-xl transition shadow-md disabled:bg-gray-400">
                                         {isSavingProfile ? 'Saving...' : 'Save Changes'}
                                     </button>

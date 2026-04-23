@@ -3,6 +3,8 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents, useMap 
 import { useNavigate } from 'react-router-dom'; 
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+
+// --- ADDED: The missing import for your hook ---
 import useIdleLogout from '../hooks/useIdleLogout';
 
 const iconShadow = 'leaflet/dist/images/marker-shadow.png';
@@ -46,6 +48,8 @@ const AutoPan = ({ position }) => {
 
 const RiderDashboard = () => {
     const navigate = useNavigate(); 
+    
+    // Auto logout after 60 minutes of inactivity
     useIdleLogout(60);
     
     const [bookings, setBookings] = useState([]);
@@ -119,7 +123,6 @@ const RiderDashboard = () => {
                 return alert("Error saving fare: " + data.message);
             }
 
-            // --- UPGRADED: Clear the map if the ride is finished OR cancelled ---
             if (newStatus === 'completed' || newStatus === 'cancelled') {
                 setSelectedBookingForMap(null);
             }
@@ -325,7 +328,6 @@ const RiderDashboard = () => {
                                                 <button onClick={() => { setEditFareValue(b.fare); setEditingFareId(b.id || b.booking_id); }} className="text-sm font-bold text-orange-600 hover:underline">
                                                     Negotiate / Update Fare
                                                 </button>
-                                                {/* --- NEW: Rider can cancel their offer if the passenger is taking too long --- */}
                                                 <button onClick={() => { if(window.confirm("Are you sure you want to withdraw this offer?")) updateStatus((b.id || b.booking_id), 'cancelled'); }} className="text-xs font-bold text-red-500 hover:underline mt-1">
                                                     Cancel Offer
                                                 </button>
@@ -333,7 +335,6 @@ const RiderDashboard = () => {
                                         )
                                     ) : (
                                         <div className="flex gap-2">
-                                            {/* --- NEW: Cancel button for accepted rides --- */}
                                             <button 
                                                 onClick={() => {
                                                     if(window.confirm("Cancel this ride? Do this only if you cannot contact the passenger.")) {
