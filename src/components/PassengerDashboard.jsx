@@ -77,6 +77,10 @@ const PassengerDashboard = () => {
     const [mapCenter, setMapCenter] = useState({ lat: 11.1965, lng: 123.7745 });
     
     const [showThankYou, setShowThankYou] = useState(false);
+    
+    // --- NEW: Loading state to prevent double-clicks ---
+    const [isBooking, setIsBooking] = useState(false); 
+    
     const prevBookingRef = useRef(null);
 
     const apiHeaders = {
@@ -226,6 +230,12 @@ const PassengerDashboard = () => {
         if (!pickupLocation.lat) return alert("Please set a pickup point.");
         if (hasDestination && !dropoffLocation.lat) return alert("Please set a destination.");
 
+        // --- NEW: Block execution if already booking ---
+        if (isBooking) return;
+        
+        // --- NEW: Lock the buttons ---
+        setIsBooking(true);
+
         const payload = { 
             passenger_id: currentUser.id, 
             rider_id: riderId || null, 
@@ -243,6 +253,9 @@ const PassengerDashboard = () => {
             setRemarks('');
         } catch (error) {
             alert("Failed to process booking.");
+        } finally {
+            // --- NEW: Unlock the buttons when request is completely done ---
+            setIsBooking(false);
         }
     };
 
@@ -333,7 +346,6 @@ const PassengerDashboard = () => {
                                         onClick={() => { 
                                             setIsEditingProfile(false); 
                                             setProfileStatus({ type: '', text: '' });
-                                            // --- FIX: Safely parse the cancel button phone number ---
                                             const cancelPhone = String(currentUser?.contact_number || '');
                                             setProfileForm({ 
                                                 name: currentUser?.name || '', 
@@ -557,9 +569,10 @@ const PassengerDashboard = () => {
                             <div className="flex flex-col gap-3 mt-2">
                                 <button 
                                     onClick={() => handleBook(null)} 
-                                    className="w-full bg-brand hover:bg-brand-dark text-white font-extrabold py-4 rounded-xl transition shadow-md flex items-center justify-center gap-2"
+                                    disabled={isBooking}
+                                    className={`w-full text-white font-extrabold py-4 rounded-xl transition shadow-md flex items-center justify-center gap-2 ${isBooking ? 'bg-gray-400 cursor-not-allowed' : 'bg-brand hover:bg-brand-dark'}`}
                                 >
-                                    <span className="text-xl">📡</span> Broadcast to All Riders
+                                    <span className="text-xl">📡</span> {isBooking ? 'Broadcasting...' : 'Broadcast to All Riders'}
                                 </button>
                                 <p className="text-center text-xs font-bold text-gray-500 uppercase tracking-wider">OR</p>
                                 <div className="bg-gray-50 text-gray-600 p-4 rounded-xl text-sm font-bold flex items-center gap-3 border border-gray-200">
@@ -607,7 +620,13 @@ const PassengerDashboard = () => {
                                                 <p className="text-sm uppercase font-extrabold text-gray-800 tracking-wider">{rider.plate_number}</p>
                                             </div>
 
-                                            <button onClick={() => handleBook(rider.id)} className="w-full bg-brand hover:bg-brand-dark text-white font-extrabold py-3 px-4 rounded-xl transition shadow-md">Request Specific Rider</button>
+                                            <button 
+                                                onClick={() => handleBook(rider.id)} 
+                                                disabled={isBooking}
+                                                className={`w-full text-white font-extrabold py-3 px-4 rounded-xl transition shadow-md ${isBooking ? 'bg-gray-400 cursor-not-allowed' : 'bg-brand hover:bg-brand-dark'}`}
+                                            >
+                                                {isBooking ? 'Requesting...' : 'Request Specific Rider'}
+                                            </button>
                                         </div>
                                     </Popup>
                                 </Marker>

@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // --- UPGRADED: Added useRef ---
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents, useMap } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom'; 
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// --- ADDED: The missing import for your hook ---
 import useIdleLogout from '../hooks/useIdleLogout';
 
 const iconShadow = 'leaflet/dist/images/marker-shadow.png';
@@ -49,7 +48,6 @@ const AutoPan = ({ position }) => {
 const RiderDashboard = () => {
     const navigate = useNavigate(); 
     
-    // Auto logout after 60 minutes of inactivity
     useIdleLogout(60);
     
     const [bookings, setBookings] = useState([]);
@@ -65,6 +63,9 @@ const RiderDashboard = () => {
     const [editFareValue, setEditFareValue] = useState("");
 
     const user = JSON.parse(localStorage.getItem('user'));
+    
+    // --- NEW: Ref to track previous bookings so we don't spam notifications ---
+    const prevBookingIds = useRef(new Set());
 
     const apiHeaders = {
         'Content-Type': 'application/json',
@@ -72,11 +73,51 @@ const RiderDashboard = () => {
         'x-api-secret': import.meta.env.VITE_API_SECRET_KEY
     };
 
+    // --- NEW: Ask for Notification Permission when Dashboard loads ---
+    useEffect(() => {
+        if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission();
+        }
+    }, []);
+
+    // --- NEW: The Notification Trigger Function ---
+    const triggerNewRideAlert = (passengerName) => {
+        if ("Notification" in window && Notification.permission === "granted") {
+            // Triggers a native push notification on Android/PC
+            new Notification("New Ride Request! 🛵", {
+                body: `${passengerName} is looking for a ride nearby. Tap to view!`,
+                vibrate: [200, 100, 200, 100, 200] // Vibrates Android phones
+            });
+        }
+    };
+
     const fetchBookings = () => {
         if (!user || user.account_status === 'pending') return; 
         fetch(`${import.meta.env.VITE_API_BASE_URL}rider_bookings.php?rider_id=${user.id}`, { headers: apiHeaders })
             .then(res => res.json())
-            .then(data => { if(data.status === 'success') setBookings(data.data); })
+            .then(data => { 
+                if(data.status === 'success') {
+                    const incomingBookings = data.data;
+                    setBookings(incomingBookings);
+
+                    // --- NEW: Notification Logic Check ---
+                    const currentIds = new Set(incomingBookings.map(b => b.id || b.booking_id));
+
+                    // Make sure this isn't the very first time the page loads
+                    if (prevBookingIds.current.size > 0) {
+                        incomingBookings.forEach(b => {
+                            const bId = b.id || b.booking_id;
+                            // If this is a PENDING ride, and we haven't seen this ID before -> FIRE ALERT
+                            if (b.status === 'pending' && !prevBookingIds.current.has(bId)) {
+                                triggerNewRideAlert(b.passenger_name);
+                            }
+                        });
+                    }
+
+                    // Save current list for the next 5-second check
+                    prevBookingIds.current = currentIds;
+                } 
+            })
             .catch(err => console.error("Failed to fetch bookings:", err));
     };
 
