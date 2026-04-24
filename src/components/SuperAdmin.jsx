@@ -6,7 +6,6 @@ const SuperAdmin = () => {
     const [users, setUsers] = useState([]);
     const [editingUser, setEditingUser] = useState(null);
     
-    // --- UPGRADED: Added license_back_image ---
     const [editFiles, setEditFiles] = useState({ license_image: null, license_back_image: null, or_image: null, cr_image: null });
     
     const [viewingUser, setViewingUser] = useState(null); 
@@ -282,9 +281,9 @@ const SuperAdmin = () => {
                                 <span className="px-3 py-1 bg-orange-100 text-orange-800 text-xs font-extrabold rounded-lg uppercase">{b.status}</span>
                             </div>
                             
-                            {/* --- NEW: Added the Date display right here --- */}
+                            {/* --- FIX: Added timeZone: 'Asia/Manila' to lock it to Philippines Time --- */}
                             <p className="text-sm text-gray-500 font-medium mb-3 flex items-center gap-2">
-                                📅 {b.created_at ? new Date(b.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : 'Unknown Date'}
+                                📅 {b.created_at ? new Date(b.created_at).toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' }) : 'Unknown Date'}
                             </p>
 
                             <p><strong>Passenger:</strong> {b.passenger_name}</p>
